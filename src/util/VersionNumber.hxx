@@ -6,6 +6,14 @@
 #include "StaticString.hxx"
 #include <stdlib.h>
 
+#ifdef major
+#undef major
+#endif
+
+#ifdef minor
+#undef minor
+#endif
+
 /**
  * @brief Convert a string to a version number and compare it to other version number
  */

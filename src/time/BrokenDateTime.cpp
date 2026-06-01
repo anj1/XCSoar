@@ -11,33 +11,45 @@
 #include <cstdint>
 #include <time.h>
 
+static int64_t
+FloorDiv(int64_t numerator, int64_t denominator) noexcept
+{
+  int64_t quotient = numerator / denominator;
+  const int64_t remainder = numerator % denominator;
+  if (remainder < 0)
+    --quotient;
+
+  return quotient;
+}
+
 static BrokenDateTime
 ToBrokenDateTimeUtcSeconds(int64_t t) noexcept
 {
   /* Build UTC civil time from a signed second count, without converting through
    * std::time_t (so values beyond 32-bit time_t on ILP32 are not truncated). */
-  using std::chrono::days;
-  using std::chrono::hh_mm_ss;
-  using std::chrono::local_days;
-  using std::chrono::seconds;
-  using std::chrono::sys_days;
-  using std::chrono::sys_seconds;
-  using std::chrono::weekday;
-  using std::chrono::year_month_day;
+  const int64_t days = FloorDiv(t, 86400);
+  const unsigned seconds_of_day = t - days * 86400;
 
-  const sys_seconds ss{seconds(t)};
-  const year_month_day ymd{sys_days{std::chrono::floor<days>(ss)}};
-  const auto since_midnight = ss - sys_seconds{sys_days{ymd}};
-  const hh_mm_ss<seconds> hms{since_midnight};
+  /* Howard Hinnant's civil-from-days algorithm, where day zero is
+   * 1970-01-01. */
+  int64_t z = days + 719468;
+  const int64_t era = FloorDiv(z, 146097);
+  const unsigned doe = z - era * 146097;
+  const unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+  const int64_t y = static_cast<int64_t>(yoe) + era * 400;
+  const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+  const unsigned mp = (5 * doy + 2) / 153;
 
   BrokenDateTime dt;
-  dt.year = static_cast<unsigned>(static_cast<int>(ymd.year()));
-  dt.month = static_cast<unsigned>(ymd.month());
-  dt.day = static_cast<unsigned>(ymd.day());
-  dt.day_of_week = static_cast<int8_t>(weekday{local_days{ymd}}.c_encoding());
-  dt.hour = static_cast<unsigned>(hms.hours().count());
-  dt.minute = static_cast<unsigned>(hms.minutes().count());
-  dt.second = static_cast<unsigned>(hms.seconds().count());
+  dt.day = doy - (153 * mp + 2) / 5 + 1;
+  dt.month = mp < 10 ? mp + 3 : mp - 9;
+  dt.year = y + (dt.month <= 2);
+  dt.day_of_week = static_cast<int8_t>((days + 4) % 7);
+  if (dt.day_of_week < 0)
+    dt.day_of_week += 7;
+  dt.hour = seconds_of_day / 3600;
+  dt.minute = (seconds_of_day / 60) % 60;
+  dt.second = seconds_of_day % 60;
   return dt;
 }
 

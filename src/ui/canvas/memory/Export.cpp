@@ -9,6 +9,7 @@
 #endif
 
 #include <cassert>
+#include <stdio.h>
 
 #ifdef GREYSCALE
 
@@ -40,22 +41,31 @@ CopyFromGreyscale(
   const uint8_t *src_pixels = reinterpret_cast<const uint8_t *>(src.data);
 
 #ifdef KOBO
-  if (!enable_dither) {
-    CopyGreyscale((uint8_t *)dest_pixels, dest_pitch,
-                  src_pixels, src.pitch,
-                  src.size.width, src.size.height);
+  if (dest_bpp == 1) {
+    if (!enable_dither) {
+      CopyGreyscale((uint8_t *)dest_pixels, dest_pitch,
+                    src_pixels, src.pitch,
+                    src.size.width, src.size.height);
+      return;
+    }
+
+#ifdef DITHER
+    dither.DitherGreyscale(src_pixels, src.pitch,
+                           (uint8_t *)dest_pixels,
+                           dest_pitch,
+                           src.size.width, src.size.height);
     return;
+#endif
   }
 #endif
 
+#ifndef KOBO
 #ifdef DITHER
-
   dither.DitherGreyscale(src_pixels, src.pitch,
                          (uint8_t *)dest_pixels,
                          dest_pitch,
                          src.size.width, src.size.height);
 
-#ifndef KOBO
   if (dest_bpp == 4) {
     const unsigned n_pixels = (dest_pitch / dest_bpp)
       * src.height;
@@ -66,9 +76,9 @@ CopyFromGreyscale(
     while (s != end)
       *--d = *--s;
   }
+  return;
 #endif
-
-#else
+#endif
 
   const unsigned src_pitch = src.pitch;
 
@@ -83,8 +93,6 @@ CopyFromGreyscale(
       CopyGreyscaleToRGB8((uint32_t *)dest_pixels,
                            (const Luminosity8 *)src_pixels, src.size.width);
   }
-
-#endif
 }
 
 #else /* GREYSCALE */
@@ -94,6 +102,14 @@ CopyFromBGRA(void *_dest_pixels, unsigned _dest_pitch, unsigned dest_bpp,
              ConstImageBuffer<BGRAPixelTraits> src)
 {
   assert(dest_bpp == 4 || dest_bpp == 2);
+
+  static bool traced = false;
+  if (!traced) {
+    fprintf(stderr, "xcsoar trace: CopyFromBGRA pitch/bpp/size %u %u %u %u %zu\n",
+            _dest_pitch, dest_bpp, src.size.width, src.size.height, src.pitch);
+    fflush(stderr);
+    traced = true;
+  }
 
   const uint32_t dest_pitch = _dest_pitch / dest_bpp;
   const uint32_t src_pitch = src.pitch / sizeof(*src.data);

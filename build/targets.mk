@@ -2,7 +2,7 @@ TARGETS = PC WIN64 \
 	UNIX UNIX32 UNIX64 OPT \
 	WAYLAND \
 	FUZZER \
-	PI PI2 CUBIE KOBO NEON \
+	PI PI2 CUBIE KOBO KOBO_NICKEL NEON \
 	ANDROID ANDROID7 ANDROID86 \
 	ANDROIDAARCH64 ANDROIDX64 \
 	ANDROIDFAT \
@@ -54,6 +54,7 @@ TARGET_IS_PI := n
 TARGET_IS_PI32 := n
 TARGET_IS_PI64 := n
 TARGET_IS_KOBO := n
+TARGET_IS_KOBO_NICKEL := n
 TARGET_IS_CUBIE := n
 HAVE_POSIX := n
 HAVE_WIN32 := y
@@ -219,6 +220,28 @@ ifeq ($(TARGET),KOBO)
   TARGET_IS_KOBO = y
 
   HOST_TRIPLET = armv7a-kobo-linux-musleabihf
+endif
+
+ifeq ($(TARGET),KOBO_NICKEL)
+  # Kobo devices launched from Nickel/NickelMenu, without replacing the boot
+  # flow with XCSoar's legacy KoboRoot.tgz package.
+  override TARGET = NEON
+  override TARGET_FLAVOR = KOBO_NICKEL
+  TARGET_IS_KOBO = y
+  TARGET_IS_KOBO_NICKEL = y
+
+  # Build against Nickel's ABI/sysroot, but use the GCC 10 overlay from our
+  # NickelTC fork because the public Nickel GCC 4.9 cannot compile C++20
+  # coroutines.
+  HOST_TRIPLET = arm-nickel-linux-gnueabihf
+  TCPREFIX = arm-linux-gnueabihf-
+  TCSUFFIX = -10
+  NICKEL_SYSROOT ?= /tc/arm-nickel-linux-gnueabihf/arm-nickel-linux-gnueabihf/sysroot
+
+  # Keep the first milestone focused on a local framebuffer binary; network and
+  # audio support can be re-enabled once the base launch path is proven.
+  HAVE_HTTP = n
+  ENABLE_ALSA = n
 endif
 
 ifeq ($(TARGET),NEON)
@@ -515,7 +538,18 @@ ifeq ($(TARGET_IS_KOBO),y)
 
   TARGET_CXXFLAGS += -Wno-psabi
 
-  TCPREFIX = $(abspath $(THIRDPARTY_LIBS_DIR))/bin/$(HOST_TRIPLET)-
+  ifeq ($(TARGET_IS_KOBO_NICKEL),y)
+    TARGET_ARCH += -no-pie
+    TARGET_CPPFLAGS += --sysroot=$(NICKEL_SYSROOT)
+    TARGET_CPPFLAGS += -isystem /usr/arm-linux-gnueabihf/include/c++/10
+    TARGET_CPPFLAGS += -isystem /usr/arm-linux-gnueabihf/include/c++/10/arm-linux-gnueabihf
+  TARGET_CPPFLAGS += -isystem /usr/arm-linux-gnueabihf/include/c++/10/backward
+  TARGET_CPPFLAGS += -isystem $(NICKEL_SYSROOT)/usr/include
+  TARGET_CPPFLAGS += -DTARGET_IS_KOBO_NICKEL
+  TARGET_CXXFLAGS += -include $(abspath build/kobo_nickel_libstdcxx_compat.hpp)
+  else
+    TCPREFIX = $(abspath $(THIRDPARTY_LIBS_DIR))/bin/$(HOST_TRIPLET)-
+  endif
 endif
 
 ifeq ($(TARGET),ANDROID)
@@ -546,6 +580,17 @@ endif
 TARGET_LDFLAGS =
 TARGET_LDLIBS =
 TARGET_LDADD =
+
+ifeq ($(TARGET_IS_KOBO_NICKEL),y)
+  TARGET_LDFLAGS += --sysroot=$(NICKEL_SYSROOT)
+  TARGET_LDFLAGS += -L/usr/lib/gcc-cross/arm-linux-gnueabihf/10
+  TARGET_LDFLAGS += -B$(NICKEL_SYSROOT)/usr/lib/
+  TARGET_LDFLAGS += -static-libstdc++ -static-libgcc
+  TARGET_LDFLAGS += -Wl,-rpath,/usr/local/Kobo -Wl,-rpath,/usr/local/Qt-5.2.1-arm/lib
+  TARGET_LDLIBS += $(NICKEL_SYSROOT)/usr/lib/libm.so
+  TARGET_LDLIBS += $(NICKEL_SYSROOT)/usr/lib/libcrypto.so
+  TARGET_LDLIBS += -lfbink
+endif
 
 ifeq ($(TARGET),PC)
   TARGET_LDFLAGS += -Wl,--major-subsystem-version=5
@@ -581,7 +626,7 @@ ifeq ($(HOST_IS_ARM)$(TARGET_IS_CUBIE),ny)
   TARGET_LDFLAGS += -L$(CUBIE)/usr/local/stow/sunxi-mali/lib
 endif
 
-ifeq ($(TARGET_IS_KOBO),y)
+ifeq ($(TARGET_IS_KOBO)$(TARGET_IS_KOBO_NICKEL),yn)
   TARGET_LDFLAGS += --static
 
   # Dirty workaround for a musl/libstdc++ problem: libstdc++ imports
