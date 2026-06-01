@@ -88,6 +88,16 @@ elif toolchain.is_android:
         libtiff,
         libgeotiff,
     ]
+elif host_triplet == 'arm-nickel-linux-gnueabihf':
+    thirdparty_libs = [
+        zlib,
+        libfmt,
+        freetype,
+        libpng,
+        libjpeg,
+        cares,
+        lua,
+    ]
 elif '-kobo-linux-' in host_triplet:
     thirdparty_libs = [
         binutils,

@@ -35,15 +35,16 @@ public:
 
 #endif
 
+
 SimulatorPromptResult
 dlgSimulatorPromptShowModal()
 {
 #ifdef SIMULATOR_AVAILABLE
   const DialogLook &look = UIGlobals::GetDialogLook();
+
   TWidgetDialog<SimulatorPromptWidget> dialog(WidgetDialog::Full{},
                                               UIGlobals::GetMainWindow(),
                                               look, nullptr);
-
   SimulatorPromptResult result = SPR_QUIT;
   dialog.SetWidget(look, [&](SimulatorPromptWindow::Result r){
     switch (r) {

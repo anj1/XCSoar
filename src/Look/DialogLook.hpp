@@ -9,10 +9,7 @@
 #include "ui/canvas/Pen.hpp"
 #include "ui/canvas/Brush.hpp"
 #include "ui/canvas/Font.hpp"
-
-#ifdef EYE_CANDY
 #include "ui/canvas/Bitmap.hpp"
-#endif
 
 struct DialogLook {
   bool dark_mode = false;
@@ -22,9 +19,7 @@ struct DialogLook {
 
     const Font *font;
 
-#ifdef EYE_CANDY
     Bitmap background_bitmap;
-#endif
 
     Color background_color;
     Color inactive_background_color;

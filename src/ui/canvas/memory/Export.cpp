@@ -9,7 +9,6 @@
 #endif
 
 #include <cassert>
-#include <stdio.h>
 
 #ifdef GREYSCALE
 
@@ -102,14 +101,6 @@ CopyFromBGRA(void *_dest_pixels, unsigned _dest_pitch, unsigned dest_bpp,
              ConstImageBuffer<BGRAPixelTraits> src)
 {
   assert(dest_bpp == 4 || dest_bpp == 2);
-
-  static bool traced = false;
-  if (!traced) {
-    fprintf(stderr, "xcsoar trace: CopyFromBGRA pitch/bpp/size %u %u %u %u %zu\n",
-            _dest_pitch, dest_bpp, src.size.width, src.size.height, src.pitch);
-    fflush(stderr);
-    traced = true;
-  }
 
   const uint32_t dest_pitch = _dest_pitch / dest_bpp;
   const uint32_t src_pitch = src.pitch / sizeof(*src.data);

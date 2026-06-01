@@ -38,6 +38,10 @@
 #include "../memory/Dither.hpp"
 #endif
 
+#if defined(KOBO) && defined(TARGET_IS_KOBO_NICKEL)
+#include <fbink.h>
+#endif
+
 #include <cstdint>
 
 #ifdef SOFTWARE_ROTATE_DISPLAY
@@ -290,5 +294,9 @@ private:
 
 #ifdef USE_EGL
   void CreateSurface(EGLNativeWindowType native_window);
+#endif
+
+#ifdef TARGET_IS_KOBO_NICKEL
+  FBInkConfig fbink_cfg;
 #endif
 };
