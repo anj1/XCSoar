@@ -30,7 +30,7 @@ class InfoBoxWindow : public LazyPaintWindow
    * incremented each time a new #InfoBoxContent is installed.  It is
    * used to check whether a custom repaint is necessary.
    */
-  unsigned content_serial;
+  unsigned content_serial = 0;
 
   InfoBoxData data;
 

@@ -249,8 +249,9 @@ InfoBoxWindow::UpdateContent()
       Invalidate(comment_rect);
 #endif
 
-    unit_width = UnitSymbolRenderer::GetSize(look.unit_font,
-                                             data.value_unit).width;
+    unit_width = (data.value_unit < Unit::COUNT && look.unit_font.IsDefined())
+      ? UnitSymbolRenderer::GetSize(look.unit_font, data.value_unit).width
+      : 0;
   }
 }
 
