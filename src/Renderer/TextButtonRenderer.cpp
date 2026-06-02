@@ -6,6 +6,8 @@
 #include "Screen/Layout.hpp"
 #include "Look/ButtonLook.hpp"
 
+#include <algorithm>
+
 unsigned
 TextButtonRenderer::GetMinimumButtonWidth(const ButtonLook &look,
                                           std::string_view caption) noexcept
@@ -43,7 +45,26 @@ TextButtonRenderer::DrawCaption(Canvas &canvas, const PixelRect &rc,
 
   canvas.Select(*look.font);
 
-  text_renderer.Draw(canvas, rc, GetCaption());
+  const PixelSize text_size = canvas.CalcTextSize(GetCaption());
+  const int x = rc.left + std::max(0, int(rc.GetWidth()) - int(text_size.width)) / 2;
+  const int y = rc.top + std::max(0, int(rc.GetHeight()) - int(text_size.height)) / 2;
+
+#ifdef KOBO
+  const bool inverted = state == ButtonState::FOCUSED ||
+    state == ButtonState::PRESSED;
+  const Color fallback_background = inverted ? COLOR_BLACK : COLOR_WHITE;
+  const Color fallback_foreground = inverted ? COLOR_WHITE : COLOR_BLACK;
+  const PixelRect text_rc{
+    x, y,
+    std::min(rc.right, x + int(text_size.width)),
+    std::min(rc.bottom, y + int(text_size.height)),
+  };
+
+  canvas.DrawFilledRectangle(text_rc, fallback_background);
+  canvas.SetTextColor(fallback_foreground);
+#endif
+
+  canvas.DrawClippedText({x, y}, rc.right - x, GetCaption());
 }
 
 unsigned
@@ -63,4 +84,3 @@ TextButtonRenderer::DrawButton(Canvas &canvas, const PixelRect &rc,
     DrawCaption(canvas, frame_renderer.GetDrawingRect(rc, state),
                 state);
 }
-
