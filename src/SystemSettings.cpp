@@ -15,12 +15,16 @@ SystemSettings::SetDefaults()
     devices[INTERNAL_DEVICE_SLOT].port_type = DeviceConfig::PortType::INTERNAL;
   } else {
     devices[0].port_type = DeviceConfig::PortType::SERIAL;
-#ifdef _WIN32
+#ifdef KOBO
+    devices[0].path = "/dev/ttyS0";
+    devices[0].baud_rate = 9600;
+#elif defined(_WIN32)
     devices[0].path = "COM1:";
+    devices[0].baud_rate = 4800;
 #else
     devices[0].path = "/dev/tty0";
-#endif
     devices[0].baud_rate = 4800;
+#endif
     devices[0].driver_name = "Generic";
   }
 }
