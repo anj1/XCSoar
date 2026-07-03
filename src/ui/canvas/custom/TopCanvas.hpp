@@ -38,7 +38,7 @@
 #include "../memory/Dither.hpp"
 #endif
 
-#if defined(KOBO) && defined(TARGET_IS_KOBO_NICKEL)
+#ifdef TARGET_IS_KOBO_NICKEL
 #include <fbink.h>
 #endif
 

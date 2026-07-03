@@ -56,6 +56,7 @@ class NOAAListWidget final
   TrivialArray<ListItem, 20> stations;
 
   TwoTextRowsRenderer row_renderer;
+  bool needs_update = true;
 
 public:
   void SetButtonPanel(ButtonPanelWidget &_buttons) {
@@ -77,6 +78,7 @@ public:
   /* virtual methods from class Widget */
   void Prepare(ContainerWindow &parent,
                const PixelRect &rc) noexcept override;
+  void Show(const PixelRect &rc) noexcept override;
 
 protected:
   /* virtual methods from ListItemRenderer */
@@ -111,7 +113,16 @@ NOAAListWidget::Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept
   CreateList(parent, look, rc,
              row_renderer.CalculateLayout(*look.list.font_bold,
                                           look.small_font));
-  UpdateList();
+  needs_update = true;
+}
+
+void
+NOAAListWidget::Show(const PixelRect &rc) noexcept
+{
+  if (needs_update)
+    UpdateList();
+
+  WindowWidget::Show(rc);
 }
 
 void
@@ -137,6 +148,7 @@ NOAAListWidget::UpdateList()
   update_button->SetEnabled(!empty);
   remove_button->SetEnabled(!empty);
   details_button->SetEnabled(!empty);
+  needs_update = false;
 }
 
 void
