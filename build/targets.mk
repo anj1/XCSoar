@@ -238,9 +238,7 @@ ifeq ($(TARGET),KOBO_NICKEL)
   TCSUFFIX = -10
   NICKEL_SYSROOT ?= /tc/arm-nickel-linux-gnueabihf/arm-nickel-linux-gnueabihf/sysroot
 
-  # Keep the first milestone focused on a local framebuffer binary; network and
-  # audio support can be re-enabled once the base launch path is proven.
-  HAVE_HTTP = n
+  # Audio support can be re-enabled once the base launch path is proven.
   ENABLE_ALSA = n
 endif
 
@@ -588,6 +586,7 @@ ifeq ($(TARGET_IS_KOBO_NICKEL),y)
   TARGET_LDFLAGS += -static-libstdc++ -static-libgcc
   TARGET_LDFLAGS += -Wl,-rpath,/usr/local/Kobo -Wl,-rpath,/usr/local/Qt-5.2.1-arm/lib
   TARGET_LDLIBS += $(NICKEL_SYSROOT)/usr/lib/libm.so
+  TARGET_LDLIBS += -ldl
   TARGET_LDLIBS += $(NICKEL_SYSROOT)/usr/lib/libcrypto.so
   TARGET_LDLIBS += -lfbink
 endif
