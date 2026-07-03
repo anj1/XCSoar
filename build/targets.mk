@@ -541,10 +541,10 @@ ifeq ($(TARGET_IS_KOBO),y)
     TARGET_CPPFLAGS += --sysroot=$(NICKEL_SYSROOT)
     TARGET_CPPFLAGS += -isystem /usr/arm-linux-gnueabihf/include/c++/10
     TARGET_CPPFLAGS += -isystem /usr/arm-linux-gnueabihf/include/c++/10/arm-linux-gnueabihf
-  TARGET_CPPFLAGS += -isystem /usr/arm-linux-gnueabihf/include/c++/10/backward
-  TARGET_CPPFLAGS += -isystem $(NICKEL_SYSROOT)/usr/include
-  TARGET_CPPFLAGS += -DTARGET_IS_KOBO_NICKEL
-  TARGET_CXXFLAGS += -include $(abspath build/kobo_nickel_libstdcxx_compat.hpp)
+    TARGET_CPPFLAGS += -isystem /usr/arm-linux-gnueabihf/include/c++/10/backward
+    TARGET_CPPFLAGS += -isystem $(NICKEL_SYSROOT)/usr/include
+    TARGET_CPPFLAGS += -DTARGET_IS_KOBO_NICKEL=1
+    TARGET_CXXFLAGS += -include $(abspath build/kobo_nickel_libstdcxx_compat.hpp)
   else
     TCPREFIX = $(abspath $(THIRDPARTY_LIBS_DIR))/bin/$(HOST_TRIPLET)-
   endif
