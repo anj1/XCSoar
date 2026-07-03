@@ -384,6 +384,49 @@ Then compile using this command::
 
   make TARGET=KOBO output/KOBO/KoboRoot.tgz
 
+Compiling for Kobo Nickel/NickelMenu
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``KOBO_NICKEL`` target builds XCSoar for Kobo devices where XCSoar is
+launched from Nickel or NickelMenu instead of replacing the normal boot flow
+with ``KoboRoot.tgz``.  This target is intended for newer secure-boot Kobo
+devices such as the Kobo Clara Colour.
+
+This target requires a Nickel ABI sysroot with:
+
+- an ARM hard-float GCC 10 or newer cross compiler, because XCSoar requires
+  C++20 coroutine support;
+- Nickel's runtime libraries and headers;
+- FBInk headers and libraries installed into the target sysroot.
+
+Set ``NICKEL_SYSROOT`` if the sysroot is not installed at the default path
+used by the build target.  To compile, run::
+
+  make TARGET=KOBO_NICKEL DEBUG=n WERROR=n
+
+The resulting binary is written to::
+
+  output/KOBO_NICKEL/bin/xcsoar
+
+A NickelMenu package should install at least the following files under
+``/mnt/onboard/.adds/xcsoar`` on the device::
+
+  xcsoar
+  run.sh
+  stop.sh
+  fonts/
+  lib/
+
+The launch script should set ``HOME`` to the application directory and include
+the application ``lib`` directory, ``/usr/local/Kobo``, and
+``/usr/local/Qt-5.2.1-arm/lib`` in ``LD_LIBRARY_PATH`` before executing
+``xcsoar``.
+
+On Kobo Clara Colour, framebuffer dimensions, orientation, bit depth, stride,
+and the GNSS serial path have been validated.  Wi-Fi currently uses Nickel's
+existing connection state; connect Wi-Fi in Nickel before launching XCSoar if
+network access is needed.
+
 Building USB-OTG Kobo Kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -566,6 +609,11 @@ Defaults shown are from the build system (they can be overridden with
    - no
    - Framebuffer (software)
    - Cross-compile target (ARMv7 + NEON).
+ * - ``KOBO_NICKEL``
+   - Kobo e-readers launched from Nickel/NickelMenu
+   - no
+   - Framebuffer via FBInk
+   - Cross-compile target for Nickel's ABI/sysroot.
  * - ``NEON``
    - Generic ARMv7 + NEON
    - yes
