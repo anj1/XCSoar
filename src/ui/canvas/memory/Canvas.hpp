@@ -291,7 +291,8 @@ public:
    * Render text, clip it within the bounds of this Canvas.
    */
   void TextAutoClipped(PixelPoint p, std::string_view t) noexcept {
-    DrawText(p, t);
+    if (p.x < int(GetWidth()) && p.y < int(GetHeight()))
+      DrawClippedText(p, p.x < 0 ? GetWidth() : GetWidth() - unsigned(p.x), t);
   }
 
   /**

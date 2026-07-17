@@ -6,6 +6,36 @@
 #include "Screen/Layout.hpp"
 #include "Look/ButtonLook.hpp"
 
+#include <algorithm>
+
+#ifdef TARGET_IS_KOBO_NICKEL
+static void
+PrepareKoboNickelButtonCaption(Canvas &canvas, const PixelRect &rc,
+                               ButtonState state,
+                               const PixelPoint text_position,
+                               const PixelSize text_size) noexcept
+{
+  const bool inverted = state == ButtonState::FOCUSED ||
+    state == ButtonState::PRESSED;
+  const Color fallback_background = inverted ? COLOR_BLACK : COLOR_WHITE;
+  const Color fallback_foreground = inverted ? COLOR_WHITE : COLOR_BLACK;
+  const PixelRect text_rc{
+    text_position.x, text_position.y,
+    std::min(rc.right, text_position.x + int(text_size.width)),
+    std::min(rc.bottom, text_position.y + int(text_size.height)),
+  };
+
+  /*
+   * KOBO_NICKEL currently loses button captions when transparent glyphs are
+   * drawn directly over the dithered framebuffer canvas.  Keep the workaround
+   * local to this target so it can be removed when the framebuffer text path is
+   * fixed.
+   */
+  canvas.DrawFilledRectangle(text_rc, fallback_background);
+  canvas.SetTextColor(fallback_foreground);
+}
+#endif
+
 unsigned
 TextButtonRenderer::GetMinimumButtonWidth(const ButtonLook &look,
                                           std::string_view caption) noexcept
@@ -43,7 +73,16 @@ TextButtonRenderer::DrawCaption(Canvas &canvas, const PixelRect &rc,
 
   canvas.Select(*look.font);
 
-  text_renderer.Draw(canvas, rc, GetCaption());
+  const PixelSize text_size = canvas.CalcTextSize(GetCaption());
+  const int x = rc.left + std::max(0, int(rc.GetWidth()) - int(text_size.width)) / 2;
+  const int y = rc.top + std::max(0, int(rc.GetHeight()) - int(text_size.height)) / 2;
+  const PixelPoint text_position{x, y};
+
+#ifdef TARGET_IS_KOBO_NICKEL
+  PrepareKoboNickelButtonCaption(canvas, rc, state, text_position, text_size);
+#endif
+
+  canvas.DrawClippedText(text_position, rc.right - x, GetCaption());
 }
 
 unsigned
@@ -63,4 +102,3 @@ TextButtonRenderer::DrawButton(Canvas &canvas, const PixelRect &rc,
     DrawCaption(canvas, frame_renderer.GetDrawingRect(rc, state),
                 state);
 }
-
