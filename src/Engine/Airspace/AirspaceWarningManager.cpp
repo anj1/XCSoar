@@ -524,7 +524,7 @@ AirspaceWarningManager::AcknowledgeDay(ConstAirspacePtr airspace,
   const std::string_view key_view =
     key != nullptr ? std::string_view{key} : std::string_view{};
   const bool was_member = key != nullptr &&
-    notam_day_ack_by_station.contains(key_view);
+    notam_day_ack_by_station.contains(std::string{key_view});
 
   AirspaceWarning *warning = nullptr;
   if (set) {

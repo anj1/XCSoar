@@ -12,6 +12,13 @@
 #include <bit>
 #endif
 
+#if defined(__cpp_lib_bit_cast) || \
+  (defined(__has_builtin) && __has_builtin(__builtin_bit_cast))
+#define PACKED_FLOAT_CONSTEXPR constexpr
+#else
+#define PACKED_FLOAT_CONSTEXPR
+#endif
+
 /**
  * Classes for floats rely on assumption that float type is 32bit and that the
  * platform uses IEEE754 floating point representation (aso known as IEC559)
@@ -29,7 +36,7 @@ class PackedFloatLE
 public:
   PackedFloatLE() = default;
 
-  constexpr PackedFloatLE(float f)
+  PACKED_FLOAT_CONSTEXPR PackedFloatLE(float f)
   {
     uint32_t bytes;
 #if defined(__cpp_lib_bit_cast)
@@ -37,7 +44,7 @@ public:
 #elif defined(__has_builtin) && __has_builtin(__builtin_bit_cast)
     bytes = __builtin_bit_cast(uint32_t, f);
 #else
-#error "No constexpr bit-cast available."
+    std::memcpy(&bytes, &f, sizeof(bytes));
 #endif
     a = uint8_t(bytes);
     b = uint8_t(bytes >> 8);
@@ -59,7 +66,7 @@ class PackedFloatBE
 public:
   PackedFloatBE() = default;
 
-  constexpr PackedFloatBE(float f)
+  PACKED_FLOAT_CONSTEXPR PackedFloatBE(float f)
   {
     uint32_t bytes;
 #if defined(__cpp_lib_bit_cast)
@@ -67,7 +74,7 @@ public:
 #elif defined(__has_builtin) && __has_builtin(__builtin_bit_cast)
     bytes = __builtin_bit_cast(uint32_t, f);
 #else
-#error "No constexpr bit-cast available."
+    std::memcpy(&bytes, &f, sizeof(bytes));
 #endif
     d = uint8_t(bytes);
     c = uint8_t(bytes >> 8);
@@ -78,3 +85,5 @@ public:
 
 static_assert(sizeof(PackedFloatBE) == sizeof(float), "Wrong size");
 static_assert(alignof(PackedFloatBE) == 1, "Wrong alignment");
+
+#undef PACKED_FLOAT_CONSTEXPR

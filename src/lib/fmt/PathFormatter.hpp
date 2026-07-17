@@ -13,7 +13,9 @@ struct fmt::formatter<Path> : formatter<string_view>
   template <typename FormatContext>
   auto format(Path path, FormatContext &ctx) const
   {
-    return formatter<string_view>::format(path.ToUTF8(), ctx);
+    return formatter<string_view>::format(path != nullptr
+                                          ? fmt::string_view{path.c_str()}
+                                          : fmt::string_view{"<null>"}, ctx);
   }
 };
 
