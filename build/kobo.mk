@@ -1,3 +1,5 @@
+ifeq ($(TARGET_IS_KOBO_NICKEL),n)
+
 $(eval $(call pkg-config-library,LIBCRYPTO,libcrypto))
 
 KOBO_MENU_SOURCES = \
@@ -43,6 +45,8 @@ $(eval $(call link-program,KoboMenu,KOBO_MENU))
 
 ifeq ($(TARGET),UNIX)
 OPTIONAL_OUTPUTS += $(KOBO_MENU_BIN)
+endif
+
 endif
 
 ifeq ($(TARGET_IS_KOBO),y)
