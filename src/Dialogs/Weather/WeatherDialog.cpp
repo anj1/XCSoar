@@ -9,7 +9,7 @@
 #if 0
 #include "MapOverlayWidget.hpp"
 #endif
-#include "Widget/TextWidget.hpp"
+#include "Widget/LargeTextWidget.hpp"
 #include "Dialogs/WidgetDialog.hpp"
 #include "Widget/TabWidget.hpp"
 #include "Widget/ButtonWidget.hpp"
@@ -27,9 +27,9 @@ static int weather_page = 0;
 static std::unique_ptr<Widget>
 CreateEDLUnavailableWidget() noexcept
 {
-  auto widget = std::make_unique<TextWidget>();
-  widget->SetText(_("EDL weather is not available because this build has no OpenGL renderer."));
-  return widget;
+  return std::make_unique<LargeTextWidget>(
+    UIGlobals::GetDialogLook(),
+    _("EDL weather is not available because this build has no OpenGL renderer."));
 }
 #endif
 
