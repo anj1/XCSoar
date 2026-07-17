@@ -40,22 +40,31 @@ CopyFromGreyscale(
   const uint8_t *src_pixels = reinterpret_cast<const uint8_t *>(src.data);
 
 #ifdef KOBO
-  if (!enable_dither) {
-    CopyGreyscale((uint8_t *)dest_pixels, dest_pitch,
-                  src_pixels, src.pitch,
-                  src.size.width, src.size.height);
+  if (dest_bpp == 1) {
+    if (!enable_dither) {
+      CopyGreyscale((uint8_t *)dest_pixels, dest_pitch,
+                    src_pixels, src.pitch,
+                    src.size.width, src.size.height);
+      return;
+    }
+
+#ifdef DITHER
+    dither.DitherGreyscale(src_pixels, src.pitch,
+                           (uint8_t *)dest_pixels,
+                           dest_pitch,
+                           src.size.width, src.size.height);
     return;
+#endif
   }
 #endif
 
+#ifndef KOBO
 #ifdef DITHER
-
   dither.DitherGreyscale(src_pixels, src.pitch,
                          (uint8_t *)dest_pixels,
                          dest_pitch,
                          src.size.width, src.size.height);
 
-#ifndef KOBO
   if (dest_bpp == 4) {
     const unsigned n_pixels = (dest_pitch / dest_bpp)
       * src.height;
@@ -66,9 +75,9 @@ CopyFromGreyscale(
     while (s != end)
       *--d = *--s;
   }
+  return;
 #endif
-
-#else
+#endif
 
   const unsigned src_pitch = src.pitch;
 
@@ -83,8 +92,6 @@ CopyFromGreyscale(
       CopyGreyscaleToRGB8((uint32_t *)dest_pixels,
                            (const Luminosity8 *)src_pixels, src.size.width);
   }
-
-#endif
 }
 
 #else /* GREYSCALE */
