@@ -48,6 +48,7 @@ GetInfo() noexcept
 
   case KoboModel::LIBRA2:
   case KoboModel::CLARA_2E:
+  case KoboModel::CLARA_COLOUR:
     if (File::ReadString(Path("/sys/class/power_supply/battery/status"),
                          line, sizeof(line))) {
       if (StringIsEqual(line,"Not charging\n") ||

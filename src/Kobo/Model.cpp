@@ -47,6 +47,7 @@ static constexpr struct {
   { "SN-RN437", KoboModel::GLO_HD },
   { "SN-N249", KoboModel::CLARA_HD },
   { "SN-N506", KoboModel::CLARA_2E },
+  { "SN-N367", KoboModel::CLARA_COLOUR },
   { "SN-N306", KoboModel::NIA },
   { "SN-N418", KoboModel::LIBRA2 },
   { "SN-N873", KoboModel::LIBRA_H2O },
@@ -80,6 +81,7 @@ GetKoboWifiInterface() noexcept
     case KoboModel::LIBRA2:
       return "wlan0";
     case KoboModel::CLARA_2E:
+    case KoboModel::CLARA_COLOUR:
       return "mlan0";
     default:
       return "eth0";

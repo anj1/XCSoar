@@ -18,6 +18,7 @@ enum class KoboModel {
   GLO_HD,
   CLARA_HD,
   CLARA_2E,
+  CLARA_COLOUR,
   NIA,
   LIBRA2,
   LIBRA_H2O,
