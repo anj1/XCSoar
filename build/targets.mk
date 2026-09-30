@@ -604,7 +604,7 @@ TARGET_LDADD =
 ifeq ($(TARGET_IS_KOBO_NICKEL),y)
   TARGET_LDFLAGS += --sysroot=$(NICKEL_SYSROOT)
   TARGET_LDFLAGS += -static-libstdc++ -static-libgcc
-  TARGET_LDFLAGS += -Wl,-rpath,/usr/local/Kobo -Wl,-rpath,/usr/local/Qt-5.2.1-arm/lib
+  TARGET_LDFLAGS += -Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN/lib'
   TARGET_LDLIBS += -ldl
   TARGET_LDLIBS += -lfbink
   XCSOAR_LINK_GROUP = y
