@@ -19,17 +19,24 @@ ReadFromFile(const char *path, off_t offset,
     return false;
   }
 
-  bool success = false;
-  ssize_t nbytes = pread(fd, buffer, size, offset);
-  if (nbytes < 0)
-    fprintf(stderr, "Failed to read from %s: %s\n", path, strerror(errno));
-  else if (size_t(nbytes) != size)
-    fprintf(stderr, "Short read from %s\n", path);
-  else
-    success = true;
+  size_t done = 0;
+  while (done < size) {
+    const ssize_t nbytes = pread(fd, static_cast<char *>(buffer) + done,
+                                size - done, offset + done);
+    if (nbytes < 0 && errno == EINTR)
+      continue;
+    if (nbytes <= 0) {
+      if (nbytes < 0)
+        fprintf(stderr, "Failed to read from %s: %s\n", path, strerror(errno));
+      else
+        fprintf(stderr, "Short read from %s\n", path);
+      break;
+    }
+    done += size_t(nbytes);
+  }
 
   close(fd);
-  return success;
+  return done == size;
 }
 
 static constexpr struct {
@@ -71,18 +78,33 @@ ParseKoboModel(std::span<const char> data) noexcept
 KoboModel
 DetectKoboModel() noexcept
 {
-  char buffer[16];
-  if (ReadFromFile("/dev/mmcblk0", 0x200, buffer, sizeof(buffer))) {
-    const KoboModel model = ParseKoboModel(buffer);
-    if (model != KoboModel::UNKNOWN)
+  return DetectKoboModel("/dev/disk/by-partlabel/hwcfg", "/dev/mmcblk0");
+}
+
+KoboModel
+DetectKoboModel(const char *hwcfg_path, const char *legacy_path) noexcept
+{
+  /* Qt6 firmware stores the serial in sector 4 of the hwcfg partition
+     (see update_serial in /usr/libexec/platform/utils.sh). */
+  char hwcfg[512];
+  if (ReadFromFile(hwcfg_path, 0x800, hwcfg, sizeof(hwcfg))) {
+    const KoboModel model = ParseKoboModel(hwcfg);
+    if (model != KoboModel::UNKNOWN) {
+      fprintf(stderr, "Kobo model %u from hwcfg serial sector\n", unsigned(model));
       return model;
+    }
   }
 
-  char hwcfg[512];
-  if (ReadFromFile("/dev/disk/by-partlabel/hwcfg", 0,
-                   hwcfg, sizeof(hwcfg)))
-    return ParseKoboModel(hwcfg);
+  char buffer[16];
+  if (ReadFromFile(legacy_path, 0x200, buffer, sizeof(buffer))) {
+    const KoboModel model = ParseKoboModel(buffer);
+    if (model != KoboModel::UNKNOWN) {
+      fprintf(stderr, "Kobo model %u from legacy serial sector\n", unsigned(model));
+      return model;
+    }
+  }
 
+  fprintf(stderr, "Unable to identify Kobo model\n");
   return KoboModel::UNKNOWN;
 }
 

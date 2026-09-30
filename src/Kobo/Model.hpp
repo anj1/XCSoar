@@ -30,6 +30,10 @@ enum class KoboModel {
 KoboModel
 DetectKoboModel() noexcept;
 
+/** Detect using explicit read-only sources; also used by file-based tests. */
+KoboModel
+DetectKoboModel(const char *hwcfg_path, const char *legacy_path) noexcept;
+
 [[gnu::pure]]
 KoboModel
 ParseKoboModel(std::span<const char> data) noexcept;

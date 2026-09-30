@@ -377,6 +377,7 @@ TEST_KOBO_MODEL_SOURCES = \
 	$(SRC)/Kobo/Model.cpp \
 	$(TEST_SRC_DIR)/tap.c \
 	$(TEST_SRC_DIR)/TestKoboModel.cpp
+TEST_KOBO_MODEL_LDLIBS = -Wl,--wrap=pread
 $(eval $(call link-program,TestKoboModel,TEST_KOBO_MODEL))
 endif
 
