@@ -20,6 +20,8 @@ private:
   struct Config;
   Config *config;
   int fd;
+  bool synchronous_refresh;
+  bool has_refresh = false;
 
 public:
   FBInkBackend();

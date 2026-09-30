@@ -3,8 +3,11 @@
 
 #include "FBInkBackend.hpp"
 
+#include "Kobo/Model.hpp"
+
 #include <fbink.h>
 
+#include <cstdio>
 #include <stdexcept>
 
 struct FBInkBackend::Config : FBInkConfig {};
@@ -18,7 +21,8 @@ GetState(const FBInkConfig &config) noexcept
 }
 
 FBInkBackend::FBInkBackend()
-  :config(new Config{}), fd(fbink_open())
+  :config(new Config{}), fd(fbink_open()),
+   synchronous_refresh(DetectKoboModel() == KoboModel::CLARA_COLOUR)
 {
   if (fd < 0) {
     delete config;
@@ -35,6 +39,13 @@ FBInkBackend::FBInkBackend()
 
 FBInkBackend::~FBInkBackend() noexcept
 {
+  if (synchronous_refresh && has_refresh) {
+    const int result = fbink_wait_for_complete(fd, LAST_MARKER);
+    if (result < 0)
+      std::fprintf(stderr, "XCSoar: final FBInk refresh fence failed: %d\n",
+                   result);
+  }
+
   fbink_close(fd);
   delete config;
 }
@@ -70,6 +81,26 @@ FBInkBackend::Prepare()
 void
 FBInkBackend::Refresh(PixelSize size)
 {
-  if (fbink_refresh(fd, 0, 0, size.width, size.height, config) < 0)
+  int result = fbink_refresh(fd, 0, 0, size.width, size.height, config);
+  if (result < 0)
     throw std::runtime_error("FBInk screen refresh failed");
+
+  has_refresh = true;
+
+  if (!synchronous_refresh)
+    return;
+
+  result = fbink_wait_for_submission(fd, LAST_MARKER);
+  if (result < 0) {
+    std::fprintf(stderr, "XCSoar: FBInk refresh submission fence failed: %d\n",
+                 result);
+    throw std::runtime_error("FBInk refresh submission fence failed");
+  }
+
+  result = fbink_wait_for_complete(fd, LAST_MARKER);
+  if (result < 0) {
+    std::fprintf(stderr, "XCSoar: FBInk refresh completion fence failed: %d\n",
+                 result);
+    throw std::runtime_error("FBInk refresh completion fence failed");
+  }
 }

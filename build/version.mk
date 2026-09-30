@@ -21,6 +21,7 @@ VERSION_CPPFLAGS += -DGIT_COMMIT_ID=\"$(GIT_COMMIT_ID)\"
 FULL_VERSION := $(FULL_VERSION)~$(GIT_COMMIT_ID)
 endif
 
-$(call SRC_TO_OBJ,$(SRC)/Version.cpp): $(topdir)/VERSION.txt
+$(call SRC_TO_OBJ,$(SRC)/Version.cpp): $(topdir)/VERSION.txt FORCE
 $(call SRC_TO_OBJ,$(SRC)/Version.cpp): CPPFLAGS += $(VERSION_CPPFLAGS)
+$(call SRC_TO_OBJ,$(SRC)/Dialogs/dlgCredits.cpp): FORCE
 $(call SRC_TO_OBJ,$(SRC)/Dialogs/dlgCredits.cpp): CPPFLAGS += $(VERSION_CPPFLAGS)
