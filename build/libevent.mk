@@ -44,6 +44,10 @@ else
 EVENT_SOURCES += \
 	$(SRC)/ui/event/poll/linux/MergeMouse.cpp \
 	$(SRC)/ui/event/poll/linux/Input.cpp
+
+ifeq ($(TARGET_IS_KOBO_NICKEL),y)
+EVENT_SOURCES += $(SRC)/ui/event/poll/linux/KoboInput.cpp
+endif
 endif
 
 else ifeq ($(ENABLE_SDL),y)

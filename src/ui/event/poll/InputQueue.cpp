@@ -4,6 +4,10 @@
 #include "InputQueue.hpp"
 #include "../shared/Event.hpp"
 #include "DisplayOrientation.hpp"
+#ifdef TARGET_IS_KOBO_NICKEL
+#include <stdio.h>
+#include <stdlib.h>
+#endif
 
 namespace UI {
 
@@ -17,11 +21,20 @@ InputEventQueue::InputEventQueue(EventQueue &queue) noexcept
 #endif
 {
 #ifndef USE_LIBINPUT
+#ifdef TARGET_IS_KOBO_NICKEL
+  if (!mouse.OpenKobo(KoboInputRole::TOUCH, getenv("KOBO_TOUCH_DEVICE"))) {
+    fprintf(stderr, "No usable Kobo touch input; exiting\n");
+    exit(EXIT_FAILURE);
+  }
+  if (!keyboard.OpenKobo(KoboInputRole::POWER, getenv("KOBO_POWER_DEVICE"), &mouse))
+    fprintf(stderr, "No separate Kobo power input found\n");
+#else
   /* power button */
   keyboard.Open("/dev/input/event0");
 
   /* Kobo touch screen */
   mouse.Open("/dev/input/event1");
+#endif
 #else
   libinput_handler.Open();
 #endif

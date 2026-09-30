@@ -14,6 +14,9 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
 
 #include <linux/input.h>
 
@@ -52,15 +55,14 @@ LinuxInputDevice::LinuxInputDevice(EventQueue &_queue,
 }
 
 /**
- * Check if the EVDEV supports EV_ABS or EV_REL..
+ * Check if the evdev device supports EV_ABS or EV_REL.
  */
-[[gnu::pure]]
 static bool
 IsPointerDevice(int fd) noexcept
 {
   assert(fd >= 0);
 
-  unsigned long features[BitsToInts<unsigned long>(std::max(EV_ABS, EV_REL))];
+  unsigned long features[BitsToInts<unsigned long>(EV_MAX + 1)]{};
   if (ioctl(fd, EVIOCGBIT(0, sizeof(features)), features) < 0)
     return false;
 
@@ -70,13 +72,20 @@ IsPointerDevice(int fd) noexcept
 bool
 LinuxInputDevice::Open(const char *path) noexcept
 {
+  Close();
   FileDescriptor _fd;
   if (!_fd.OpenReadOnly(path))
     return false;
 
+  return Open(_fd, path);
+}
+
+bool
+LinuxInputDevice::Open(FileDescriptor _fd, const char *path) noexcept
+{
+  Close();
   _fd.SetNonBlocking();
   event.Open(_fd);
-  event.ScheduleRead();
 
   min_x = max_x = min_y = max_y = 0;
 
@@ -85,9 +94,8 @@ LinuxInputDevice::Open(const char *path) noexcept
     merge.AddPointer();
 
     if (!IsKobo()) {
-      /* obtain touch screen information */
-      /* no need to do that on the Kobo, because we know its touch
-         screen is well-calibrated */
+      /* Obtain axis ranges on non-Kobo devices. Kobo coordinates are already
+         calibrated to the display, so retain their existing transform. */
 
       const int fd = event.GetFileDescriptor().Get();
 
@@ -104,9 +112,10 @@ LinuxInputDevice::Open(const char *path) noexcept
     }
 
 #ifdef TARGET_IS_KOBO_NICKEL
-    /* Nickel keeps running while XCSoar owns the display. */
+    /* Own the input exclusively until the launcher resumes Nickel. */
     grabbed = ioctl(event.GetFileDescriptor().Get(), EVIOCGRAB, 1) == 0;
     if (!grabbed) {
+      fprintf(stderr, "Failed to grab input %s: %s\n", path, strerror(errno));
       Close();
       return false;
     }
@@ -116,8 +125,121 @@ LinuxInputDevice::Open(const char *path) noexcept
   rel_x = rel_y = rel_wheel = 0;
   down = false;
   moving = pressing = releasing = false;
+  if (!event.ScheduleRead()) {
+    fprintf(stderr, "Cannot monitor input %s: %s\n", path, strerror(errno));
+    Close();
+    return false;
+  }
   return true;
 }
+
+#ifdef TARGET_IS_KOBO_NICKEL
+KoboInputResult
+LinuxInputDevice::OpenKoboCandidate(const char *path, KoboInputRole role,
+                                    const LinuxInputDevice *exclude) noexcept
+{
+  /* Reject a known alias of an already owned event node before opening it. */
+  if (exclude != nullptr && exclude->IsOpen()) {
+    struct stat target, other;
+    if (stat(path, &target) == 0 && S_ISCHR(target.st_mode) &&
+        fstat(exclude->event.GetFileDescriptor().Get(), &other) == 0 &&
+        target.st_rdev == other.st_rdev)
+      return KoboInputResult::UNSUITABLE;
+  }
+  FileDescriptor fd;
+  if (!fd.OpenReadOnly(path)) {
+    if (errno != ENOENT)
+      fprintf(stderr, "Failed to open input %s: %s\n", path, strerror(errno));
+    return KoboInputResult::UNSUITABLE;
+  }
+
+  struct stat identity;
+  if (fstat(fd.Get(), &identity) < 0 || !S_ISCHR(identity.st_mode)) {
+    fd.Close();
+    return KoboInputResult::UNSUITABLE;
+  }
+  if (exclude != nullptr && exclude->IsOpen()) {
+    struct stat other;
+    if (fstat(exclude->event.GetFileDescriptor().Get(), &other) == 0 &&
+        identity.st_rdev == other.st_rdev) {
+      fd.Close();
+      return KoboInputResult::UNSUITABLE;
+    }
+  }
+
+  KoboInputCapabilities caps;
+  const bool queried = ReadKoboInputCapabilities(fd.Get(), caps);
+  if (queried) {
+    char name[128]{};
+    ioctl(fd.Get(), EVIOCGNAME(sizeof(name)), name);
+    fprintf(stderr, "Kobo input %s (%.*s): xy=%d mt_xy=%d slots=%d "
+            "tracking_id=%d BTN_TOUCH=%d direct=%d pen=%d KEY_POWER=%d\n",
+            path, int(sizeof(name) - 1), name, caps.xy, caps.mt_xy,
+            caps.slots, caps.tracking_id, caps.touch, caps.direct,
+            caps.pen, caps.power);
+  }
+  const bool suitable = queried && caps.Matches(role);
+  if (!suitable) {
+    if (!queried)
+      fprintf(stderr, "Cannot query input capabilities %s: %s\n", path, strerror(errno));
+    else
+      fprintf(stderr, "Input %s lacks Kobo %s capabilities\n", path,
+              role == KoboInputRole::TOUCH ? "touch" : "power");
+    fd.Close();
+    return KoboInputResult::UNSUITABLE;
+  }
+
+  /* Open performs the grab; failure is fatal to selection, so Nickel can
+     never compete with XCSoar for a device which failed EVIOCGRAB. */
+  if (!Open(fd, path))
+    return KoboInputResult::FAILED;
+
+  /* Power must also be owned exclusively while Nickel is suspended. */
+  if (!grabbed) {
+    grabbed = ioctl(event.GetFileDescriptor().Get(), EVIOCGRAB, 1) == 0;
+    if (!grabbed) {
+      fprintf(stderr, "Failed to grab input %s: %s\n", path, strerror(errno));
+      Close();
+      return KoboInputResult::FAILED;
+    }
+  }
+  mt_only = !(caps.xy && caps.touch);
+  mt_slot_protocol = mt_only && caps.slots && caps.tracking_id;
+  mt_slot = 0;
+  if (role == KoboInputRole::TOUCH) {
+    fprintf(stderr, "Kobo touch input: %s (%s coordinates)\n", path,
+            mt_only ? (mt_slot_protocol ? "multitouch slots" : "multitouch reports")
+                    : "legacy");
+
+    /* Log ranges without changing Kobo's calibrated coordinate transform. */
+    for (unsigned axis : {mt_only ? ABS_MT_POSITION_X : ABS_X,
+                          mt_only ? ABS_MT_POSITION_Y : ABS_Y}) {
+      input_absinfo abs;
+      if (ioctl(event.GetFileDescriptor().Get(), EVIOCGABS(axis), &abs) == 0)
+        fprintf(stderr, "Kobo input axis %u: min=%d max=%d\n",
+                axis, abs.minimum, abs.maximum);
+    }
+  } else
+    fprintf(stderr, "Kobo power input: %s\n", path);
+  return KoboInputResult::OPENED;
+}
+
+bool
+LinuxInputDevice::OpenKobo(KoboInputRole role, const char *override_path,
+                          const LinuxInputDevice *exclude) noexcept
+{
+  struct Context {
+    LinuxInputDevice &device;
+    KoboInputRole role;
+    const LinuxInputDevice *exclude;
+  } context{*this, role, exclude};
+  return DiscoverKoboInput(role, override_path,
+    [](const char *path, void *opaque) noexcept {
+      auto &c = *static_cast<Context *>(opaque);
+      return c.device.OpenKoboCandidate(path, c.role, c.exclude);
+    }, &context);
+}
+#endif
 
 void
 LinuxInputDevice::Close() noexcept
@@ -125,13 +247,13 @@ LinuxInputDevice::Close() noexcept
   if (!IsOpen())
     return;
 
-  if (is_pointer) {
 #ifdef TARGET_IS_KOBO_NICKEL
-    if (grabbed) {
-      ioctl(event.GetFileDescriptor().Get(), EVIOCGRAB, 0);
-      grabbed = false;
-    }
+  if (grabbed) {
+    ioctl(event.GetFileDescriptor().Get(), EVIOCGRAB, 0);
+    grabbed = false;
+  }
 #endif
+  if (is_pointer) {
     merge.RemovePointer();
   }
 
@@ -201,6 +323,10 @@ LinuxInputDevice::Read() noexcept
       break;
 
     case EV_KEY:
+#ifdef TARGET_IS_KOBO_NICKEL
+      if (mt_slot_protocol && e.code == BTN_TOUCH)
+        break; // tracking IDs own the primary contact in the slot protocol
+#endif
       if (e.code == BTN_TOUCH || e.code == BTN_MOUSE) {
         bool new_down = e.value;
         if (new_down != down) {
@@ -225,6 +351,27 @@ LinuxInputDevice::Read() noexcept
       break;
 
     case EV_ABS:
+#ifdef TARGET_IS_KOBO_NICKEL
+      if (e.code == ABS_MT_SLOT) {
+        if (mt_slot_protocol)
+          mt_slot = unsigned(e.value);
+        break;
+      }
+      if (e.code >= ABS_MT_TOUCH_MAJOR &&
+          (!mt_only || (mt_slot_protocol && mt_slot != 0)))
+        break;
+      if (mt_slot_protocol && e.code == ABS_MT_TRACKING_ID) {
+        const bool new_down = e.value >= 0;
+        if (new_down != down) {
+          down = new_down;
+          if (down)
+            pressing = true;
+          else
+            releasing = true;
+        }
+        break;
+      }
+#endif
       moving = true;
 
       switch (e.code) {

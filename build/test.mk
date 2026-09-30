@@ -150,6 +150,10 @@ ifeq ($(TARGET_IS_KOBO),y)
 TEST_NAMES += TestKoboModel
 endif
 
+ifeq ($(TARGET_IS_KOBO_NICKEL),y)
+TEST_NAMES += TestKoboInput
+endif
+
 ifeq ($(HAVE_WIN32),n)
 TEST_NAMES += \
 	TestDataLayoutMigration \
@@ -379,6 +383,15 @@ TEST_KOBO_MODEL_SOURCES = \
 	$(TEST_SRC_DIR)/TestKoboModel.cpp
 TEST_KOBO_MODEL_LDLIBS = -Wl,--wrap=pread
 $(eval $(call link-program,TestKoboModel,TEST_KOBO_MODEL))
+endif
+
+ifeq ($(TARGET_IS_KOBO_NICKEL),y)
+TEST_KOBO_INPUT_SOURCES = \
+	$(SRC)/ui/event/poll/linux/KoboInput.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestKoboInput.cpp
+TEST_KOBO_INPUT_LDLIBS = -Wl,--wrap=ioctl
+$(eval $(call link-program,TestKoboInput,TEST_KOBO_INPUT))
 endif
 
 TEST_CANVAS_EXPORT_SOURCES = \

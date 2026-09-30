@@ -5,6 +5,11 @@
 
 #include "event/PipeEvent.hxx"
 #include "Math/Point2D.hpp"
+#ifdef TARGET_IS_KOBO_NICKEL
+#include "KoboInput.hpp"
+#endif
+
+class FileDescriptor;
 
 namespace UI {
 
@@ -54,6 +59,9 @@ class LinuxInputDevice final {
 
 #ifdef TARGET_IS_KOBO_NICKEL
   bool grabbed;
+  bool mt_only = false;
+  bool mt_slot_protocol = false;
+  unsigned mt_slot = 0;
 #endif
 
   PipeEvent event;
@@ -66,6 +74,10 @@ public:
   }
 
   bool Open(const char *path) noexcept;
+#ifdef TARGET_IS_KOBO_NICKEL
+  bool OpenKobo(KoboInputRole role, const char *override_path,
+               const LinuxInputDevice *exclude = nullptr) noexcept;
+#endif
   void Close() noexcept;
 
   bool IsOpen() const noexcept {
@@ -73,6 +85,11 @@ public:
   }
 
 private:
+  bool Open(FileDescriptor fd, const char *path) noexcept;
+#ifdef TARGET_IS_KOBO_NICKEL
+  KoboInputResult OpenKoboCandidate(const char *path, KoboInputRole role,
+                                    const LinuxInputDevice *exclude) noexcept;
+#endif
   void Read() noexcept;
 
   void OnSocketReady(unsigned events) noexcept;
